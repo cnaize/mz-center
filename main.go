@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/cnaize/mz-center/db/memory"
 	"github.com/cnaize/mz-center/log"
 	"github.com/cnaize/mz-center/server"
 )
@@ -21,6 +22,8 @@ func init() {
 func main() {
 	flag.Parse()
 	log.Init(loggerConfig)
+
+	serverConfig.DB = memory.NewDB()
 
 	if err := server.New(serverConfig).Run(); err != nil {
 		log.Fatal("Server run failed: %+v", err)
