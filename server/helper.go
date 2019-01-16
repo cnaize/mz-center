@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	maxSearchLen = 32
+	maxSearchLen = 64
 )
 
 // https://rosettacode.org/wiki/Strip_control_codes_and_extended_characters_from_a_string#Go

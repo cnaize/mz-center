@@ -11,9 +11,9 @@ type DB interface {
 }
 
 type SearchProvider interface {
-	GetSearchRequestList(offset, count int) (model.SearchRequestList, error)
-	AddSearchRequest(request model.SearchRequest) error
+	GetSearchRequestList(offset, count uint) (*model.SearchRequestList, error)
+	AddSearchRequest(request *model.SearchRequest) error
 
-	GetSearchResponseList(request model.SearchRequest, offset, count int) (model.SearchResponseList, error)
-	AddSearchResponseList(user model.User, request model.SearchRequest, response model.SearchResponseList) error
+	GetSearchResponseList(request *model.SearchRequest, offset, count uint) (*model.SearchResponseList, error)
+	AddSearchResponseList(user *model.User, request *model.SearchRequest, response *model.SearchResponseList) error
 }
