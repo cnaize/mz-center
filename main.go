@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"github.com/cnaize/mz-center/db/memory"
-	"github.com/cnaize/mz-center/log"
 	"github.com/cnaize/mz-center/server"
+	"github.com/cnaize/mz-common/log"
 )
 
 var (
@@ -14,9 +14,8 @@ var (
 
 func init() {
 	flag.UintVar(&loggerConfig.Lvl, "log-lvl", 5, "log level")
-	flag.StringVar(&loggerConfig.Dir, "log-dir", ".", "log directory")
 
-	flag.UintVar(&serverConfig.Port, "port", 11312, "server port")
+	flag.UintVar(&serverConfig.Port, "port", 11310, "server port")
 }
 
 func main() {
@@ -26,6 +25,6 @@ func main() {
 	serverConfig.DB = memory.NewDB()
 
 	if err := server.New(serverConfig).Run(); err != nil {
-		log.Fatal("Server run failed: %+v", err)
+		log.Fatal("MuzeZone Center: server run failed: %+v", err)
 	}
 }

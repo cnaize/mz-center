@@ -2,8 +2,8 @@ package memory
 
 import (
 	dbm "github.com/cnaize/mz-center/db"
-	"github.com/cnaize/mz-center/log"
-	"github.com/cnaize/mz-center/model"
+	"github.com/cnaize/mz-common/log"
+	"github.com/cnaize/mz-common/model"
 	"sync"
 	"time"
 )
@@ -11,7 +11,7 @@ import (
 type DB struct {
 	ms         sync.RWMutex
 	searches   map[string]map[*model.User]*model.SearchResponseList
-	mr         sync.Mutex
+	mr         sync.RWMutex
 	searchReqs []*model.SearchRequest
 }
 
@@ -20,29 +20,32 @@ func NewDB() *DB {
 		searches: make(map[string]map[*model.User]*model.SearchResponseList),
 	}
 
-	go db.gc()
+	//go db.gc()
 
 	return db
 }
 
 func (db *DB) GetSearchRequestList(offset, count uint) (*model.SearchRequestList, error) {
 	db.ms.RLock()
+	db.mr.RLock()
 	defer db.ms.RUnlock()
+	defer db.mr.RUnlock()
 
-	res := &model.SearchRequestList{TotalReqCount: uint(len(db.searches))}
+	res := model.SearchRequestList{TotalReqCount: uint(len(db.searchReqs))}
 	if res.TotalReqCount < offset {
-		return res, nil
+		return &res, nil
 	}
 
-	if count == 0 {
-		count = dbm.MaxItemsCount
-	} else if count > dbm.MaxItemsCount {
-		count = dbm.MaxItemsCount
+	if count == 0 || count > dbm.MaxRequestItemsCount {
+		count = dbm.MaxRequestItemsCount
 	}
 
 	var o uint
 	var c uint
-	for s := range db.searches {
+	for _, r := range db.searchReqs {
+		if r.TotalRespCount >= dbm.MaxResponseItemsCount {
+			continue
+		}
 		if o < offset {
 			continue
 		}
@@ -50,70 +53,80 @@ func (db *DB) GetSearchRequestList(offset, count uint) (*model.SearchRequestList
 			break
 		}
 
-		res.Items = append(res.Items, &model.SearchRequest{Text: s})
+		res.Items = append(res.Items, r)
 		o++
 		c++
 	}
 
-	return res, nil
+	return &res, nil
 }
 
-func (db *DB) AddSearchRequest(request *model.SearchRequest) error {
+func (db *DB) AddSearchRequest(request *model.SearchRequest) (*model.SearchRequest, error) {
 	db.ms.Lock()
+	db.mr.Lock()
 	defer db.ms.Unlock()
+	defer db.mr.Unlock()
 
 	if _, ok := db.searches[request.Text]; !ok {
-		db.mr.Lock()
-		defer db.mr.Unlock()
-
-		request.CreatedAt = time.Now()
 		db.searchReqs = append(db.searchReqs, request)
 		db.searches[request.Text] = make(map[*model.User]*model.SearchResponseList)
+	} else {
+		request = db.findRequest(request)
 	}
 
-	return nil
+	request.UpdatedAt = time.Now()
+
+	return request, nil
 }
 
 func (db *DB) GetSearchResponseList(request *model.SearchRequest, offset, count uint) (*model.SearchResponseList, error) {
 	db.ms.RLock()
+	db.mr.RLock()
 	defer db.ms.RUnlock()
+	defer db.mr.RUnlock()
 
 	uresp, ok := db.searches[request.Text]
 	if !ok {
 		return nil, dbm.ErrorNotFound
 	}
 
-	if count == 0 {
-		count = dbm.MaxItemsCount
-	} else if count > dbm.MaxItemsCount {
-		count = dbm.MaxItemsCount
+	if count == 0 || count > dbm.MaxResponseItemsCount {
+		count = dbm.MaxResponseItemsCount
 	}
 
-	res := &model.SearchResponseList{}
+	var res model.SearchResponseList
 	var o uint
-	var t uint
 	for _, r := range uresp {
-		t += uint(len(r.Items))
-
 		if o < offset {
 			continue
 		}
 		if uint(len(res.Items)) >= count {
-			continue
+			break
 		}
 
 		res.Items = append(res.Items, r.Items...)
 		o++
 	}
 
-	res.Request = &model.SearchRequest{TotalRespCount: t}
+	res.Request = db.findRequest(request)
 
-	return res, nil
+	return &res, nil
 }
 
 func (db *DB) AddSearchResponseList(user *model.User, request *model.SearchRequest, response *model.SearchResponseList) error {
 	db.ms.Lock()
+	db.mr.RLock()
 	defer db.ms.Unlock()
+	defer db.mr.RUnlock()
+
+	request = db.findRequest(request)
+	if request == nil {
+		return nil
+	}
+
+	if request.TotalRespCount >= dbm.MaxResponseItemsCount {
+		return nil
+	}
 
 	if uresp, ok := db.searches[request.Text]; !ok {
 		return nil
@@ -126,6 +139,17 @@ func (db *DB) AddSearchResponseList(user *model.User, request *model.SearchReque
 	}
 
 	db.searches[request.Text][user] = response
+	request.TotalRespCount = request.TotalRespCount + uint(len(response.Items))
+
+	return nil
+}
+
+func (db *DB) findRequest(inRequest *model.SearchRequest) *model.SearchRequest {
+	for _, r := range db.searchReqs {
+		if r.Text == inRequest.Text {
+			return r
+		}
+	}
 
 	return nil
 }
@@ -142,7 +166,7 @@ func (db *DB) gc() {
 		for ; i < len(db.searchReqs); i++ {
 			sr := db.searchReqs[i]
 
-			if now.Sub(sr.CreatedAt) < 8*time.Second {
+			if now.Sub(sr.UpdatedAt) < dbm.RequestsCleanPeriod {
 				break
 			}
 

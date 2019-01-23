@@ -1,9 +1,14 @@
 package db
 
-import "github.com/cnaize/mz-center/model"
+import (
+	"github.com/cnaize/mz-common/model"
+	"time"
+)
 
 const (
-	MaxItemsCount = 100
+	MaxRequestItemsCount  = 100
+	MaxResponseItemsCount = 100
+	RequestsCleanPeriod   = 8 * time.Second
 )
 
 type DB interface {
@@ -12,7 +17,7 @@ type DB interface {
 
 type SearchProvider interface {
 	GetSearchRequestList(offset, count uint) (*model.SearchRequestList, error)
-	AddSearchRequest(request *model.SearchRequest) error
+	AddSearchRequest(request *model.SearchRequest) (*model.SearchRequest, error)
 
 	GetSearchResponseList(request *model.SearchRequest, offset, count uint) (*model.SearchResponseList, error)
 	AddSearchResponseList(user *model.User, request *model.SearchRequest, response *model.SearchResponseList) error

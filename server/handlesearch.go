@@ -3,7 +3,8 @@ package server
 import (
 	"fmt"
 	"github.com/cnaize/mz-center/db"
-	"github.com/cnaize/mz-center/model"
+	"github.com/cnaize/mz-common/log"
+	"github.com/cnaize/mz-common/model"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -16,7 +17,7 @@ func (s *Server) handleGetSearchRequestList(c *gin.Context) {
 
 	if err := c.ShouldBindQuery(&in); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchRequestList{
-			Error: &model.Error{Str: fmt.Sprintf("parsing query string failed: %+v", err)},
+			Error: &model.Error{Str: fmt.Sprintf("query string parse failed: %+v", err)},
 		})
 		return
 	}
@@ -41,14 +42,17 @@ func (s *Server) handleAddSearchRequest(c *gin.Context) {
 		return
 	}
 
-	if err := s.config.DB.AddSearchRequest(&model.SearchRequest{Text: text}); err != nil {
+	log.Debug("Search text: %s", text)
+
+	req, err := s.config.DB.AddSearchRequest(&model.SearchRequest{Text: text})
+	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, model.SearchRequest{
 			Error: &model.Error{Str: fmt.Sprintf("db failed: %+v", err)},
 		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, nil)
+	c.JSON(http.StatusCreated, req)
 }
 
 func (s *Server) handleGetSearchResponseList(c *gin.Context) {
@@ -67,7 +71,7 @@ func (s *Server) handleGetSearchResponseList(c *gin.Context) {
 
 	if err := c.ShouldBindQuery(&in); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchResponseList{
-			Error: &model.Error{Str: fmt.Sprintf("parsing query string failed: %+v", err)},
+			Error: &model.Error{Str: fmt.Sprintf("query string parse failed: %+v", err)},
 		})
 		return
 	}
@@ -96,7 +100,7 @@ func (s *Server) handleAddSearchResponseList(c *gin.Context) {
 		return
 	}
 
-	username := c.Param("username")
+	username := ParseSearchText(c.Param("username"))
 	if username == "" {
 		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchResponseList{
 			Error: &model.Error{Str: fmt.Sprintf("invalid username")},
