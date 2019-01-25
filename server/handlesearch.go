@@ -2,9 +2,9 @@ package server
 
 import (
 	"fmt"
-	"github.com/cnaize/mz-center/db"
 	"github.com/cnaize/mz-common/log"
 	"github.com/cnaize/mz-common/model"
+	"github.com/cnaize/mz-common/util"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -34,7 +34,7 @@ func (s *Server) handleGetSearchRequestList(c *gin.Context) {
 }
 
 func (s *Server) handleAddSearchRequest(c *gin.Context) {
-	text := ParseSearchText(c.Param("text"))
+	text := util.ParseInStr(c.Param("text"))
 	if text == "" {
 		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchRequest{
 			Error: &model.Error{Str: fmt.Sprintf("invalid search text")},
@@ -61,7 +61,7 @@ func (s *Server) handleGetSearchResponseList(c *gin.Context) {
 		Count  uint `form:"count"`
 	}
 
-	text := ParseSearchText(c.Param("text"))
+	text := util.ParseInStr(c.Param("text"))
 	if text == "" {
 		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchResponseList{
 			Error: &model.Error{Str: fmt.Sprintf("invalid search text")},
@@ -78,7 +78,7 @@ func (s *Server) handleGetSearchResponseList(c *gin.Context) {
 
 	res, err := s.config.DB.GetSearchResponseList(&model.SearchRequest{Text: text}, in.Offset, in.Count)
 	if err != nil {
-		if err != db.ErrorNotFound {
+		if !s.config.DB.IsSearchItemNotFound(err) {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, model.SearchResponseList{
 				Error: &model.Error{Str: fmt.Sprintf("db failed: %+v", err)},
 			})
@@ -92,7 +92,7 @@ func (s *Server) handleGetSearchResponseList(c *gin.Context) {
 }
 
 func (s *Server) handleAddSearchResponseList(c *gin.Context) {
-	text := ParseSearchText(c.Param("text"))
+	text := util.ParseInStr(c.Param("text"))
 	if text == "" {
 		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchResponseList{
 			Error: &model.Error{Str: fmt.Sprintf("invalid search text")},
@@ -100,7 +100,7 @@ func (s *Server) handleAddSearchResponseList(c *gin.Context) {
 		return
 	}
 
-	username := ParseSearchText(c.Param("username"))
+	username := util.ParseInStr(c.Param("username"))
 	if username == "" {
 		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchResponseList{
 			Error: &model.Error{Str: fmt.Sprintf("invalid username")},

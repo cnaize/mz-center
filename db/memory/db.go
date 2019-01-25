@@ -1,11 +1,16 @@
 package memory
 
 import (
+	"errors"
 	dbm "github.com/cnaize/mz-center/db"
 	"github.com/cnaize/mz-common/log"
 	"github.com/cnaize/mz-common/model"
 	"sync"
 	"time"
+)
+
+var (
+	errorNotFound = errors.New("not found")
 )
 
 type DB struct {
@@ -87,11 +92,11 @@ func (db *DB) GetSearchResponseList(request *model.SearchRequest, offset, count 
 
 	uresp, ok := db.searches[request.Text]
 	if !ok {
-		return nil, dbm.ErrorNotFound
+		return nil, errorNotFound
 	}
 
-	if count == 0 || count > dbm.MaxResponseItemsCount {
-		count = dbm.MaxResponseItemsCount
+	if count == 0 || count > dbm.MaxResponseItemsPerRequestCount {
+		count = dbm.MaxResponseItemsPerRequestCount
 	}
 
 	var res model.SearchResponseList
@@ -142,6 +147,10 @@ func (db *DB) AddSearchResponseList(user *model.User, request *model.SearchReque
 	request.TotalRespCount = request.TotalRespCount + uint(len(response.Items))
 
 	return nil
+}
+
+func (db *DB) IsSearchItemNotFound(err error) bool {
+	return err == errorNotFound
 }
 
 func (db *DB) findRequest(inRequest *model.SearchRequest) *model.SearchRequest {
