@@ -4,25 +4,24 @@ import (
 	"fmt"
 	"github.com/cnaize/mz-common/log"
 	"github.com/cnaize/mz-common/model"
-	"github.com/cnaize/mz-common/util"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
 func (s *Server) handleGetSearchRequestList(c *gin.Context) {
+	db := s.config.DB
+
 	var in struct {
 		Offset uint `form:"offset"`
 		Count  uint `form:"count"`
 	}
 
-	if err := c.ShouldBindQuery(&in); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchRequestList{
-			Error: &model.Error{Str: fmt.Sprintf("query string parse failed: %+v", err)},
-		})
-		return
+	c.ShouldBindQuery(&in)
+	if in.Count == 0 || in.Count >= model.MaxRequestItemsPerRequestCount {
+		in.Count = model.MaxRequestItemsPerRequestCount
 	}
 
-	res, err := s.config.DB.GetSearchRequestList(in.Offset, in.Count)
+	res, err := db.GetSearchRequestList(in.Offset, in.Count)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, model.SearchRequestList{
 			Error: &model.Error{Str: fmt.Sprintf("db failed: %+v", err)},
@@ -34,92 +33,87 @@ func (s *Server) handleGetSearchRequestList(c *gin.Context) {
 }
 
 func (s *Server) handleAddSearchRequest(c *gin.Context) {
-	text := util.ParseInStr(c.Param("text"))
-	if text == "" {
-		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchRequest{
-			Error: &model.Error{Str: fmt.Sprintf("invalid search text")},
-		})
+	db := s.config.DB
+
+	var inRequest model.SearchRequest
+	if err := c.ShouldBindJSON(&inRequest); err != nil {
+		log.Warn("Server: search request add failed: %+v", err)
+		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	log.Debug("Search text: %s", text)
-
-	req, err := s.config.DB.AddSearchRequest(&model.SearchRequest{Text: text})
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, model.SearchRequest{
-			Error: &model.Error{Str: fmt.Sprintf("db failed: %+v", err)},
-		})
+	if err := db.AddSearchRequest(inRequest); err != nil {
+		log.Warn("Server: search request add failed: %+v", err)
+		c.AbortWithStatus(http.StatusConflict)
 		return
 	}
 
-	c.JSON(http.StatusCreated, req)
+	c.JSON(http.StatusCreated, nil)
 }
 
 func (s *Server) handleGetSearchResponseList(c *gin.Context) {
+	db := s.config.DB
+
 	var in struct {
 		Offset uint `form:"offset"`
 		Count  uint `form:"count"`
 	}
 
-	text := util.ParseInStr(c.Param("text"))
-	if text == "" {
+	c.ShouldBindQuery(&in)
+	if in.Count == 0 || in.Count >= model.MaxResponseItemsCount {
+		in.Count = model.MaxResponseItemsCount
+	}
+
+	var inRequest model.SearchRequest
+	if err := c.ShouldBindQuery(&inRequest); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchResponseList{
-			Error: &model.Error{Str: fmt.Sprintf("invalid search text")},
+			Error: &model.Error{Str: fmt.Sprintf("input parse failed: %+v", err)},
 		})
 		return
 	}
 
-	if err := c.ShouldBindQuery(&in); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchResponseList{
-			Error: &model.Error{Str: fmt.Sprintf("query string parse failed: %+v", err)},
-		})
-		return
-	}
-
-	res, err := s.config.DB.GetSearchResponseList(&model.SearchRequest{Text: text}, in.Offset, in.Count)
+	res, err := db.GetSearchResponseList(inRequest, in.Offset, in.Count)
 	if err != nil {
-		if !s.config.DB.IsSearchItemNotFound(err) {
+		if s.config.DB.IsSearchItemNotFound(err) {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, model.SearchResponseList{
-				Error: &model.Error{Str: fmt.Sprintf("db failed: %+v", err)},
+				Error: &model.Error{Str: fmt.Sprintf("not found: %+v", err)},
 			})
 			return
 		}
 
-		res = &model.SearchResponseList{Request: &model.SearchRequest{}}
+		c.AbortWithStatusJSON(http.StatusInternalServerError, model.SearchResponseList{
+			Error: &model.Error{Str: fmt.Sprintf("db failed: %+v", err)},
+		})
+		return
 	}
 
 	c.JSON(http.StatusOK, res)
 }
 
 func (s *Server) handleAddSearchResponseList(c *gin.Context) {
-	text := util.ParseInStr(c.Param("text"))
-	if text == "" {
-		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchResponseList{
-			Error: &model.Error{Str: fmt.Sprintf("invalid search text")},
-		})
+	db := s.config.DB
+
+	// TODO: come back here again after sign up implementation
+	username := c.Param("username")
+	user := model.User{Username: &username}
+
+	var inRequest model.SearchRequest
+	if err := c.ShouldBindQuery(&inRequest); err != nil {
+		log.Warn("Server: search response list add failed: %+v", err)
+		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	username := util.ParseInStr(c.Param("username"))
-	if username == "" {
-		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchResponseList{
-			Error: &model.Error{Str: fmt.Sprintf("invalid username")},
-		})
+	var inResponseList model.SearchResponseList
+	if err := c.ShouldBindJSON(&inResponseList); err != nil {
+		log.Warn("Server: search response list add failed: %+v", err)
+		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	resp := &model.SearchResponseList{}
-	if err := c.BindJSON(resp); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, model.SearchResponseList{
-			Error: &model.Error{Str: fmt.Sprintf("invalid response list: %+v", err)},
-		})
-		return
-	}
-
-	if err := s.config.DB.AddSearchResponseList(&model.User{Username: username}, &model.SearchRequest{Text: text}, resp); err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, model.SearchResponseList{
-			Error: &model.Error{Str: fmt.Sprintf("db failed: %+v", err)},
-		})
+	if err := db.AddSearchResponseList(user, inRequest, inResponseList); err != nil {
+		log.Warn("Server: search response list add failed: %+v", err)
+		c.AbortWithStatus(http.StatusConflict)
 		return
 	}
 

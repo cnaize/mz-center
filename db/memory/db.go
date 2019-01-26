@@ -1,5 +1,6 @@
 package memory
 
+/*
 import (
 	"errors"
 	dbm "github.com/cnaize/mz-center/db"
@@ -194,3 +195,4 @@ func (db *DB) gc() {
 		gc()
 	}
 }
+*/

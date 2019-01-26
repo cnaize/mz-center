@@ -29,12 +29,12 @@ func New(config Config) *Server {
 			reqs := searches.Group("/requests")
 			{
 				reqs.GET("", s.handleGetSearchRequestList)
-				reqs.POST("/:text", s.handleAddSearchRequest)
+				reqs.POST("", s.handleAddSearchRequest)
 			}
 			resps := searches.Group("/responses")
 			{
-				resps.GET("/:text", s.handleGetSearchResponseList)
-				resps.POST("/:text/:username", s.handleAddSearchResponseList)
+				resps.GET("", s.handleGetSearchResponseList)
+				resps.POST("/:username", s.handleAddSearchResponseList)
 			}
 		}
 	}

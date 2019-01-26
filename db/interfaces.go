@@ -6,10 +6,7 @@ import (
 )
 
 const (
-	MaxRequestItemsCount            = 100
-	MaxResponseItemsCount           = 500
-	MaxResponseItemsPerRequestCount = MaxResponseItemsCount / 10
-	RequestsCleanPeriod             = 8 * time.Second
+	RequestsCleanPeriod = 8 * time.Second
 )
 
 type DB interface {
@@ -17,11 +14,11 @@ type DB interface {
 }
 
 type SearchProvider interface {
-	GetSearchRequestList(offset, count uint) (*model.SearchRequestList, error)
-	AddSearchRequest(request *model.SearchRequest) (*model.SearchRequest, error)
+	GetSearchRequestList(offset, count uint) (model.SearchRequestList, error)
+	AddSearchRequest(request model.SearchRequest) error
 
-	GetSearchResponseList(request *model.SearchRequest, offset, count uint) (*model.SearchResponseList, error)
-	AddSearchResponseList(user *model.User, request *model.SearchRequest, response *model.SearchResponseList) error
+	GetSearchResponseList(request model.SearchRequest, offset, count uint) (model.SearchResponseList, error)
+	AddSearchResponseList(user model.User, request model.SearchRequest, responseList model.SearchResponseList) error
 
 	IsSearchItemNotFound(err error) bool
 }
