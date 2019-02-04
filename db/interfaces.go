@@ -2,15 +2,18 @@ package db
 
 import (
 	"github.com/cnaize/mz-common/model"
-	"time"
-)
-
-const (
-	RequestsCleanPeriod = 8 * time.Second
 )
 
 type DB interface {
+	UserProvider
 	SearchProvider
+}
+
+type UserProvider interface {
+	GetUser(user model.User) (model.User, error)
+	GetUserByXToken(xtoken string) (model.User, error)
+
+	IsUserItemNotFound(err error) bool
 }
 
 type SearchProvider interface {

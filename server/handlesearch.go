@@ -23,6 +23,11 @@ func (s *Server) handleGetSearchRequestList(c *gin.Context) {
 
 	res, err := db.GetSearchRequestList(in.Offset, in.Count)
 	if err != nil {
+		if db.IsSearchItemNotFound(err) {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
 		c.AbortWithStatusJSON(http.StatusInternalServerError, model.SearchRequestList{
 			Error: &model.Error{Str: fmt.Sprintf("db failed: %+v", err)},
 		})
@@ -36,7 +41,7 @@ func (s *Server) handleAddSearchRequest(c *gin.Context) {
 	db := s.config.DB
 
 	var inRequest model.SearchRequest
-	if err := c.ShouldBindJSON(&inRequest); err != nil {
+	if err := c.ShouldBindQuery(&inRequest); err != nil {
 		log.Warn("Server: search request add failed: %+v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
@@ -75,9 +80,7 @@ func (s *Server) handleGetSearchResponseList(c *gin.Context) {
 	res, err := db.GetSearchResponseList(inRequest, in.Offset, in.Count)
 	if err != nil {
 		if s.config.DB.IsSearchItemNotFound(err) {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, model.SearchResponseList{
-				Error: &model.Error{Str: fmt.Sprintf("not found: %+v", err)},
-			})
+			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
 
@@ -92,10 +95,7 @@ func (s *Server) handleGetSearchResponseList(c *gin.Context) {
 
 func (s *Server) handleAddSearchResponseList(c *gin.Context) {
 	db := s.config.DB
-
-	// TODO: come back here again after sign up implementation
-	username := c.Param("username")
-	user := model.User{Username: &username}
+	user := c.MustGet("user").(*model.User)
 
 	var inRequest model.SearchRequest
 	if err := c.ShouldBindQuery(&inRequest); err != nil {
@@ -111,7 +111,12 @@ func (s *Server) handleAddSearchResponseList(c *gin.Context) {
 		return
 	}
 
-	if err := db.AddSearchResponseList(user, inRequest, inResponseList); err != nil {
+	if err := db.AddSearchResponseList(*user, inRequest, inResponseList); err != nil {
+		if db.IsSearchItemNotFound(err) {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
 		log.Warn("Server: search response list add failed: %+v", err)
 		c.AbortWithStatus(http.StatusConflict)
 		return

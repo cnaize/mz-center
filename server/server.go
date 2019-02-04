@@ -24,7 +24,12 @@ func New(config Config) *Server {
 	r.GET("/", s.handleStatus)
 	v1 := r.Group("/v1")
 	{
-		searches := v1.Group("/searches")
+		users := v1.Group("/users")
+		{
+			users.POST("", s.handleCreateUser)
+		}
+		
+		searches := v1.Group("/searches", s.handleAuthCheck)
 		{
 			reqs := searches.Group("/requests")
 			{
