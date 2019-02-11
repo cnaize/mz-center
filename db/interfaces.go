@@ -11,7 +11,6 @@ type DB interface {
 
 type UserProvider interface {
 	GetUser(user model.User) (model.User, error)
-	GetUserByXToken(xtoken string) (model.User, error)
 
 	IsUserItemNotFound(err error) bool
 }

@@ -9,6 +9,7 @@ import (
 
 const (
 	MinMZCoreVersion = ""
+	JwtTokenPassword = ""
 )
 
 var (
@@ -18,6 +19,7 @@ var (
 
 func init() {
 	serverConfig.MinMZCoreVersion = MinMZCoreVersion
+	serverConfig.JwtTokenPassword = JwtTokenPassword
 
 	flag.UintVar(&loggerConfig.Lvl, "log-lvl", 5, "log level")
 

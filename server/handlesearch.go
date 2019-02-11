@@ -95,7 +95,6 @@ func (s *Server) handleGetSearchResponseList(c *gin.Context) {
 
 func (s *Server) handleAddSearchResponseList(c *gin.Context) {
 	db := s.config.DB
-	user := c.MustGet("user").(*model.User)
 
 	var inRequest model.SearchRequest
 	if err := c.ShouldBindQuery(&inRequest); err != nil {
@@ -111,7 +110,15 @@ func (s *Server) handleAddSearchResponseList(c *gin.Context) {
 		return
 	}
 
-	if err := db.AddSearchResponseList(*user, inRequest, inResponseList); err != nil {
+	username := c.MustGet("username").(string)
+	user, err := db.GetUser(model.User{Username: username})
+	if err != nil {
+		log.Error("Server: search response list add failed: %+v", err)
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	if err := db.AddSearchResponseList(user, inRequest, inResponseList); err != nil {
 		if db.IsSearchItemNotFound(err) {
 			c.AbortWithStatus(http.StatusNotFound)
 			return

@@ -26,7 +26,8 @@ func New(config Config) *Server {
 	{
 		users := v1.Group("/users")
 		{
-			users.POST("", s.handleCreateUser)
+			users.POST("/signup", s.handleCreateUser)
+			users.POST("/signin", s.handleLoginUser)
 		}
 		
 		searches := v1.Group("/searches", s.handleAuthCheck)
@@ -39,7 +40,7 @@ func New(config Config) *Server {
 			resps := searches.Group("/responses")
 			{
 				resps.GET("", s.handleGetSearchResponseList)
-				resps.POST("/:username", s.handleAddSearchResponseList)
+				resps.POST("", s.handleAddSearchResponseList)
 			}
 		}
 	}
