@@ -11,6 +11,7 @@ type DB interface {
 
 type UserProvider interface {
 	GetUser(user model.User) (model.User, error)
+	CreateUser(user model.User) error
 
 	IsUserItemNotFound(err error) bool
 }

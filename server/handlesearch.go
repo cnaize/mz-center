@@ -53,7 +53,7 @@ func (s *Server) handleAddSearchRequest(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, nil)
+	c.JSON(http.StatusCreated, inRequest)
 }
 
 func (s *Server) handleGetSearchResponseList(c *gin.Context) {

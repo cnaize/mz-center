@@ -11,10 +11,14 @@ import (
 func (db *DB) GetUser(user model.User) (model.User, error) {
 	var res model.User
 	if err := db.db.First(&res, "username = ?", user.Username).Error; err != nil {
-		return user, err
+		return res, err
 	}
 
-	return user, nil
+	return res, nil
+}
+
+func (db *DB) CreateUser(user model.User) error {
+	return db.db.Create(&user).Error
 }
 
 func (db *DB) IsUserItemNotFound(err error) bool {
