@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	requestsCleanPeriod = 8 * time.Second
+	requestsCleanPeriod = 10 * time.Second
 )
 
 type DB struct {
@@ -33,7 +33,7 @@ func New() (*DB, error) {
 		db: conn,
 	}
 
-	//go db.runGC()
+	go db.runGC()
 
 	return &db, nil
 }

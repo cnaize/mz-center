@@ -5,6 +5,7 @@ import (
 	"github.com/cnaize/mz-common/log"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"time"
 )
 
 type Server struct {
@@ -14,7 +15,12 @@ type Server struct {
 
 func New(config Config) *Server {
 	r := gin.Default()
-	r.Use(cors.Default())
+	r.Use(cors.New(cors.Config{
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"},
+		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
+		AllowAllOrigins:  true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	s := &Server{
 		config: config,
@@ -29,7 +35,7 @@ func New(config Config) *Server {
 			users.POST("/signup", s.handleCreateUser)
 			users.POST("/signin", s.handleLoginUser)
 		}
-		
+
 		searches := v1.Group("/searches", s.handleAuthCheck)
 		{
 			reqs := searches.Group("/requests")

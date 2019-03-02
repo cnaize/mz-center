@@ -63,7 +63,7 @@ func (db *DB) AddSearchResponseList(user model.User, request model.SearchRequest
 
 	for _, r := range responseList.Items {
 		r.UserID = user.ID
-		r.SearchRequestID = request.ID
+		r.SearchRequestID = req.ID
 
 		if err := tx.Create(&r).Error; err != nil {
 			return err
