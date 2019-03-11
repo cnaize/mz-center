@@ -20,7 +20,7 @@ type DB struct {
 }
 
 func New() (*DB, error) {
-	conn, err := gorm.Open("sqlite3", "test.sql")
+	conn, err := gorm.Open("sqlite3", ":memory:")
 	if err != nil {
 		return nil, fmt.Errorf("open failed: %+v", err)
 	}
