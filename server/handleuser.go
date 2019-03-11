@@ -105,7 +105,7 @@ func (s *Server) handleLoginUser(c *gin.Context) {
 	in.Password = nil
 	in.Token = token
 
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, in)
 }
 
 func (s *Server) createJwtToken(user model.User) (string, error) {

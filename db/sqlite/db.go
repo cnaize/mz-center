@@ -66,8 +66,6 @@ func (db *DB) runGC() {
 }
 
 func prepare(db *gorm.DB) error {
-	db.LogMode(true)
-
 	if err := db.AutoMigrate(&model.User{}).Error; err != nil {
 		return err
 	}
