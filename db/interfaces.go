@@ -6,6 +6,7 @@ import (
 
 type DB interface {
 	UserProvider
+	MediaProvider
 	SearchProvider
 }
 
@@ -14,6 +15,16 @@ type UserProvider interface {
 	CreateUser(user model.User) error
 
 	IsUserItemNotFound(err error) bool
+}
+
+type MediaProvider interface {
+	GetMediaRequestList(owner model.User) (model.MediaRequestList, error)
+	AddMediaRequest(request model.MediaRequest) error
+
+	GetMediaResponseList(user model.User) (model.MediaResponseList, error)
+	AddMediaResponse(response model.MediaResponse) error
+
+	IsMediaItemNotFound(err error) bool
 }
 
 type SearchProvider interface {

@@ -8,7 +8,7 @@
     "log",
     "model"
   ]
-  revision = "996ab257b5ab7da3c2cb3a228e1110d1fc02ebf1"
+  revision = "e3fe04c4a9f7e2715da0e768f4c0601794fe133e"
 
 [[projects]]
   name = "github.com/dgrijalva/jwt-go"
@@ -63,8 +63,8 @@
 [[projects]]
   name = "github.com/json-iterator/go"
   packages = ["."]
-  revision = "1624edc4454b8682399def8740d46db5e4362ba4"
-  version = "v1.1.5"
+  revision = "0ff49de124c6f76f8494e194af75bde0f1a49a29"
+  version = "v1.1.6"
 
 [[projects]]
   name = "github.com/konsorten/go-windows-terminal-sequences"
@@ -75,8 +75,8 @@
 [[projects]]
   name = "github.com/mattn/go-isatty"
   packages = ["."]
-  revision = "369ecd8cea9851e459abb67eb171853e3986591e"
-  version = "v0.0.6"
+  revision = "c2a7a6ca930a4cd0bc33a3f298eb71960732a3a7"
+  version = "v0.0.7"
 
 [[projects]]
   name = "github.com/mattn/go-sqlite3"
@@ -116,7 +116,7 @@
     "blowfish",
     "ssh/terminal"
   ]
-  revision = "c2843e01d9a2bc60bb26ad24e09734fdc2d9ec58"
+  revision = "a1f597ede03a7bef967a422b5b3a5bd08805a01e"
 
 [[projects]]
   branch = "master"
@@ -125,7 +125,7 @@
     "unix",
     "windows"
   ]
-  revision = "c8c8c57fd1e1a977c10821a559dda983a9a9a3b5"
+  revision = "fead79001313d15903fb4605b4a1b781532cd93e"
 
 [[projects]]
   name = "gopkg.in/go-playground/validator.v8"

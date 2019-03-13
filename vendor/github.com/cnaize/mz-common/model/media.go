@@ -23,7 +23,6 @@ type Media struct {
 	Name        string   `json:"name" form:"name" binding:"required"`
 	Ext         MediaExt `json:"ext" form:"ext" binding:"required"`
 	Dir         string   `json:"dir" form:"dir" binding:"required"`
-	Error       *Error   `json:"error,omitempty" sql:"-" form:"error"`
 	RawPath     string   `json:"-"` // lower path, used for search
 	MediaRootID uint     `json:"-" gorm:"not_null"`
 }
@@ -31,7 +30,6 @@ type Media struct {
 type MediaList struct {
 	Items         []*Media `json:"items" form:"items"`
 	AllItemsCount *uint    `json:"allItemsCount,omitempty" form:"allItemsCount"`
-	Error         *Error   `json:"error,omitempty" form:"error"`
 }
 
 type MediaRoot struct {
@@ -39,10 +37,30 @@ type MediaRoot struct {
 	Dir        string          `json:"dir" gorm:"unique_index" form:"dir" binding:"required"`
 	AccessType MediaAccessType `json:"accessType" form:"accessType" binding:"required"`
 	MediaCount *uint           `json:"mediaCount,omitempty" form:"mediaCount"`
-	Error      *Error          `json:"error,omitempty" sql:"-" form:"error"`
 }
 
 type MediaRootList struct {
 	Items []*MediaRoot `json:"items"`
-	Error *Error       `json:"error,omitempty"`
+}
+
+type MediaRequest struct {
+	User      User   `json:"user"`
+	Owner     User   `json:"owner" form:"owner" binding:"required,dive"`
+	MediaID   uint   `json:"mediaID" form:"mediaID" binding:"required"`
+	WebRTCKey string `json:"webRTCKey" form:"webRTCKey" binding:"required"`
+}
+
+type MediaRequestList struct {
+	Items []*MediaRequest `json:"items" form:"items" binding:"required,dive"`
+}
+
+type MediaResponse struct {
+	User      User   `json:"user" form:"user" binding:"required,dive"`
+	Owner     User   `json:"owner"`
+	Media     Media  `json:"media" form:"media" binding:"required,dive"`
+	WebRTCKey string `json:"webRTCKey" form:"webRTCKey" binding:"required"`
+}
+
+type MediaResponseList struct {
+	Items []*MediaResponse `json:"items" form:"items" binding:"required,dive"`
 }

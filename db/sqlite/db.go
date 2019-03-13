@@ -72,6 +72,12 @@ func prepare(db *gorm.DB) error {
 	if err := db.AutoMigrate(&model.Media{}).Error; err != nil {
 		return err
 	}
+	if err := db.AutoMigrate(&model.MediaRequest{}).Error; err != nil {
+		return err
+	}
+	if err := db.AutoMigrate(&model.MediaResponse{}).Error; err != nil {
+		return err
+	}
 	if err := db.AutoMigrate(&model.SearchRequest{}).Error; err != nil {
 		return err
 	}

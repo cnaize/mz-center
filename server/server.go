@@ -49,6 +49,20 @@ func New(config Config) *Server {
 				resps.POST("", s.handleAddSearchResponseList)
 			}
 		}
+
+		media := v1.Group("/media", s.handleAuthCheck)
+		{
+			reqs := media.Group("/requests")
+			{
+				reqs.GET("", s.handleGetMediaRequestList)
+				reqs.POST("", s.handleAddMediaRequest)
+			}
+			resps := media.Group("/responses")
+			{
+				resps.GET("", s.handleGetMediaResponseList)
+				resps.POST("", s.handleAddMediaResponse)
+			}
+		}
 	}
 
 	return s
