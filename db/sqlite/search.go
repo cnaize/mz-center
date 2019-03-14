@@ -5,6 +5,15 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+func (db *DB) GetSearchRequest(request model.SearchRequest) (model.SearchRequest, error) {
+	var res model.SearchRequest
+	if err := db.db.First(&res, "text = ?", request.Text).Error; err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
 func (db *DB) GetSearchRequestList(offset, count uint) (model.SearchRequestList, error) {
 	var res model.SearchRequestList
 	if err := db.db.Offset(offset).Limit(count).Find(&res.Items).Error; err != nil {
@@ -17,17 +26,20 @@ func (db *DB) GetSearchRequestList(offset, count uint) (model.SearchRequestList,
 }
 
 func (db *DB) AddSearchRequest(request model.SearchRequest) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
 	return db.db.Save(&request).Error
 }
 
 func (db *DB) GetSearchResponseList(request model.SearchRequest, offset, count uint) (model.SearchResponseList, error) {
-	var req model.SearchRequest
 	var res model.SearchResponseList
-	if err := db.db.First(&req, "text = ?", request.Text).Error; err != nil {
+	request, err := db.GetSearchRequest(request)
+	if err != nil {
 		return res, err
 	}
 
-	if err := db.db.Model(&req).Related(&res.Items).Offset(offset).Limit(count).Error; err != nil {
+	if err := db.db.Model(&request).Related(&res.Items).Offset(offset).Limit(count).Error; err != nil {
 		return res, err
 	}
 
@@ -47,12 +59,12 @@ func (db *DB) AddSearchResponseList(user model.User, request model.SearchRequest
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
-	var req model.SearchRequest
-	if err := db.db.First(&req, "text = ?", request.Text).Error; err != nil {
+	request, err := db.GetSearchRequest(request)
+	if err != nil {
 		return err
 	}
 
-	if !db.db.Model(&req).Related(&model.SearchResponse{}).Limit(1).RecordNotFound() {
+	if !db.db.Model(&request).Related(&model.SearchResponse{}).Limit(1).RecordNotFound() {
 		return nil
 	}
 
@@ -63,7 +75,7 @@ func (db *DB) AddSearchResponseList(user model.User, request model.SearchRequest
 
 	for _, r := range responseList.Items {
 		r.UserID = user.ID
-		r.SearchRequestID = req.ID
+		r.SearchRequestID = request.ID
 
 		if err := tx.Create(&r).Error; err != nil {
 			return err

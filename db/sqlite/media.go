@@ -8,36 +8,93 @@ import (
 
 func (db *DB) GetMediaRequestList(owner model.User) (model.MediaRequestList, error) {
 	var res model.MediaRequestList
-	if err := db.db.Find(&res.Items, "owner = ?", owner.Username).Error; err != nil {
+	owner, err := db.GetUser(owner)
+	if err != nil {
 		return res, err
+	}
+
+	if err := db.db.Find(&res.Items, "owner_id = ?", owner.ID).Error; err != nil {
+		return res, err
+	}
+
+	for _, r := range res.Items {
+		if r.OwnerID != owner.ID {
+			return res, fmt.Errorf("request owner id and owner id mismatch: %d != %d", r.OwnerID, owner.ID)
+		}
+
+		if err := db.db.First(&r.User, r.UserID).Error; err != nil {
+			return res, err
+		}
+
+		r.Owner = owner
 	}
 
 	return res, nil
 }
 
-func (db *DB) AddMediaRequest(request model.MediaRequest) error {
-	if err := db.db.First(&model.MediaRequest{}, "user = ? AND owner = ? AND media_id = ?",
-		request.User, request.Owner, request.MediaID).Error; err == nil {
-		return fmt.Errorf("request already exists")
+func (db *DB) AddMediaRequest(user model.User, request model.MediaRequest) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	user, err := db.GetUser(user)
+	if err != nil {
+		return err
 	}
+	owner, err := db.GetUser(request.Owner)
+	if err != nil {
+		return err
+	}
+
+	request.UserID = user.ID
+	request.OwnerID = owner.ID
 
 	return db.db.Create(&request).Error
 }
 
 func (db *DB) GetMediaResponseList(user model.User) (model.MediaResponseList, error) {
 	var res model.MediaResponseList
-	if err := db.db.Find(&res.Items, "user = ?", user.Username).Error; err != nil {
+	user, err := db.GetUser(user)
+	if err != nil {
 		return res, err
+	}
+
+	if err := db.db.Find(&res.Items, "user_id = ?", user.ID).Error; err != nil {
+		return res, err
+	}
+
+	for _, r := range res.Items {
+		if r.UserID != user.ID {
+			return res, fmt.Errorf("response user id and user id mismatch: %d != %d", r.UserID, user.ID)
+		}
+
+		if err := db.db.First(&r.Owner, r.OwnerID).Error; err != nil {
+			return res, err
+		}
+		if err := db.db.First(&r.Media, r.MediaID).Error; err != nil {
+			return res, err
+		}
+
+		r.User = user
 	}
 
 	return res, nil
 }
 
-func (db *DB) AddMediaResponse(response model.MediaResponse) error {
-	if err := db.db.First(&model.MediaResponse{}, "user = ? AND owner = ? AND media_id = ?",
-		response.User, response.Owner, response.MediaID).Error; err == nil {
-		return fmt.Errorf("response already exists")
+func (db *DB) AddMediaResponse(owner model.User, response model.MediaResponse) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	owner, err := db.GetUser(owner)
+	if err != nil {
+		return err
 	}
+	user, err := db.GetUser(response.User)
+	if err != nil {
+		return err
+	}
+
+	response.UserID = user.ID
+	response.OwnerID = owner.ID
 
 	return db.db.Create(&response).Error
 }

@@ -19,15 +19,16 @@ type UserProvider interface {
 
 type MediaProvider interface {
 	GetMediaRequestList(owner model.User) (model.MediaRequestList, error)
-	AddMediaRequest(request model.MediaRequest) error
+	AddMediaRequest(user model.User, request model.MediaRequest) error
 
 	GetMediaResponseList(user model.User) (model.MediaResponseList, error)
-	AddMediaResponse(response model.MediaResponse) error
+	AddMediaResponse(owner model.User, response model.MediaResponse) error
 
 	IsMediaItemNotFound(err error) bool
 }
 
 type SearchProvider interface {
+	GetSearchRequest(request model.SearchRequest) (model.SearchRequest, error)
 	GetSearchRequestList(offset, count uint) (model.SearchRequestList, error)
 	AddSearchRequest(request model.SearchRequest) error
 

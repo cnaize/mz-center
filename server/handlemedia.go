@@ -30,23 +30,14 @@ func (s *Server) handleAddMediaRequest(c *gin.Context) {
 	db := s.config.DB
 	username := c.MustGet("user").(string)
 
-	var in model.MediaRequest
-	if err := c.ShouldBindJSON(&in); err != nil {
+	var inRequest model.MediaRequest
+	if err := c.ShouldBindJSON(&inRequest); err != nil {
 		log.Debug("Server: media request add failed: %+v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	user, err := db.GetUser(model.User{Username: username})
-	if err != nil {
-		log.Error("Server: media request add failed: +v", err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	in.User = user
-
-	if err := db.AddMediaRequest(in); err != nil {
+	if err := db.AddMediaRequest(model.User{Username: username}, inRequest); err != nil {
 		log.Error("Server: media request add failed: %+v", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -78,23 +69,14 @@ func (s *Server) handleAddMediaResponse(c *gin.Context) {
 	db := s.config.DB
 	username := c.MustGet("user").(string)
 
-	var in model.MediaResponse
-	if err := c.ShouldBindJSON(&in); err != nil {
+	var inResponse model.MediaResponse
+	if err := c.ShouldBindJSON(&inResponse); err != nil {
 		log.Debug("Server: media response add failed: %+v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	owner, err := db.GetUser(model.User{Username: username})
-	if err != nil {
-		log.Error("Server: media response add failed: +v", err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	in.Owner = owner
-
-	if err := db.AddMediaResponse(in); err != nil {
+	if err := db.AddMediaResponse(model.User{Username: username}, inResponse); err != nil {
 		log.Error("Server: media response add failed: %+v", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
