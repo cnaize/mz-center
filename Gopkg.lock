@@ -8,7 +8,7 @@
     "log",
     "model"
   ]
-  revision = "6082b461f536ab5bd486514284a8f673d29e2cb9"
+  revision = "b6f37c50543212a449a90af04c2d31ce9c3055c5"
 
 [[projects]]
   name = "github.com/dgrijalva/jwt-go"

@@ -13,10 +13,9 @@ func (s *Server) handleCreateUser(c *gin.Context) {
 	db := s.config.DB
 
 	var in struct {
-		Username  string  `json:"username" form:"username" binding:"required"`
-		Password  *string `json:"password,omitempty" form:"password" binding:"required"`
-		Password1 *string `json:"password1,omitempty" form:"password1"`
-		Token     string  `json:"token"`
+		Username  string `json:"username" form:"username" binding:"required"`
+		Password  string `json:"password,omitempty" form:"password" binding:"required"`
+		Password1 string `json:"password1,omitempty" form:"password1"`
 	}
 
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -35,18 +34,19 @@ func (s *Server) handleCreateUser(c *gin.Context) {
 		return
 	}
 
-	if *in.Password != *in.Password1 {
+	if in.Password != in.Password1 {
 		log.Debug("Server: user creation failed: passwords mismatch: %s - %s", in.Password, in.Password1)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	ph, err := bcrypt.GenerateFromPassword([]byte(*in.Password), bcrypt.DefaultCost)
+	ph, err := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Error("Server: user creation failed: %+v", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
+
 	user.PassHash = string(ph)
 
 	if err := db.CreateUser(user); err != nil {
@@ -62,18 +62,15 @@ func (s *Server) handleCreateUser(c *gin.Context) {
 		return
 	}
 
-	in.Password = nil
-	in.Password1 = nil
-	in.Token = token
+	user.Token = token
 
-	c.JSON(http.StatusCreated, in)
+	c.JSON(http.StatusCreated, user)
 }
 
 func (s *Server) handleLoginUser(c *gin.Context) {
 	var in struct {
-		Username string  `json:"username" form:"username" binding:"required"`
-		Password *string `json:"password,omitempty" form:"password" binding:"required"`
-		Token    string  `json:"token"`
+		Username string `json:"username" form:"username" binding:"required"`
+		Password string `json:"password,omitempty" form:"password" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -89,7 +86,7 @@ func (s *Server) handleLoginUser(c *gin.Context) {
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PassHash), []byte(*in.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PassHash), []byte(in.Password)); err != nil {
 		log.Debug("Server: user login failed: %+v", err)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
@@ -102,10 +99,9 @@ func (s *Server) handleLoginUser(c *gin.Context) {
 		return
 	}
 
-	in.Password = nil
-	in.Token = token
+	user.Token = token
 
-	c.JSON(http.StatusOK, in)
+	c.JSON(http.StatusOK, user)
 }
 
 func (s *Server) createJwtToken(user model.User) (string, error) {

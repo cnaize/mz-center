@@ -8,9 +8,9 @@ import (
 type User struct {
 	Base
 	Username  string     `json:"username" gorm:"unique_index"`
+	Token     string     `json:"token" form:"token"`
 	PassHash  string     `json:"-"`
 	DeletedAt *time.Time `json:"-"`
-	Error     *Error     `json:"error,omitempty" sql:"-" form:"error"`
 }
 
 type Token struct {
