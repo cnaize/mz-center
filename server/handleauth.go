@@ -33,7 +33,7 @@ func (s *Server) handleAuthCheck(c *gin.Context) {
 		return
 	}
 
-	log.Debug("Server: user %s: auth complete", tk.Username)
+	log.Debug("Server: auth complete: %s", tk.Username)
 
 	c.Set("user", tk.Username)
 }

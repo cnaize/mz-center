@@ -14,9 +14,16 @@ func (db *DB) GetSearchRequest(request model.SearchRequest) (model.SearchRequest
 	return res, nil
 }
 
-func (db *DB) GetSearchRequestList(offset, count uint) (model.SearchRequestList, error) {
+// TODO:
+//  check if the user already sent response for the request
+func (db *DB) GetSearchRequestList(user model.User, offset, count uint) (model.SearchRequestList, error) {
 	var res model.SearchRequestList
-	if err := db.db.Offset(offset).Limit(count).Find(&res.Items).Error; err != nil {
+	user, err := db.GetUser(user)
+	if err != nil {
+		return res, err
+	}
+
+	if err := db.db.Find(&res.Items).Offset(offset).Limit(count).Error; err != nil {
 		return res, err
 	}
 
@@ -59,7 +66,11 @@ func (db *DB) AddSearchResponseList(user model.User, request model.SearchRequest
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
-	request, err := db.GetSearchRequest(request)
+	user, err := db.GetUser(user)
+	if err != nil {
+		return err
+	}
+	request, err = db.GetSearchRequest(request)
 	if err != nil {
 		return err
 	}
@@ -74,6 +85,9 @@ func (db *DB) AddSearchResponseList(user model.User, request model.SearchRequest
 	}
 
 	for _, r := range responseList.Items {
+		// remove id to prevent creation media with core-side id
+		r.Media.ID = 0
+
 		r.UserID = user.ID
 		r.SearchRequestID = request.ID
 

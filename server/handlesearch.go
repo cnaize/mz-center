@@ -9,6 +9,7 @@ import (
 
 func (s *Server) handleGetSearchRequestList(c *gin.Context) {
 	db := s.config.DB
+	username := c.MustGet("user").(string)
 
 	var in struct {
 		Offset uint `form:"offset"`
@@ -20,7 +21,7 @@ func (s *Server) handleGetSearchRequestList(c *gin.Context) {
 		in.Count = model.MaxRequestItemsPerRequestCount
 	}
 
-	res, err := db.GetSearchRequestList(in.Offset, in.Count)
+	res, err := db.GetSearchRequestList(model.User{Username: username}, in.Offset, in.Count)
 	if err != nil {
 		if db.IsSearchItemNotFound(err) {
 			c.AbortWithStatus(http.StatusNotFound)
@@ -107,14 +108,7 @@ func (s *Server) handleAddSearchResponseList(c *gin.Context) {
 		return
 	}
 
-	user, err := db.GetUser(model.User{Username: username})
-	if err != nil {
-		log.Error("Server: search response list add failed: %+v", err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	if err := db.AddSearchResponseList(user, inRequest, inResponseList); err != nil {
+	if err := db.AddSearchResponseList(model.User{Username: username}, inRequest, inResponseList); err != nil {
 		if db.IsSearchItemNotFound(err) {
 			c.AbortWithStatus(http.StatusNotFound)
 			return

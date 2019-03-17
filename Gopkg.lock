@@ -8,7 +8,7 @@
     "log",
     "model"
   ]
-  revision = "b6f37c50543212a449a90af04c2d31ce9c3055c5"
+  revision = "3d273ed17816a0d499f4dfcf2832f036ebad30e2"
 
 [[projects]]
   name = "github.com/dgrijalva/jwt-go"
@@ -42,8 +42,8 @@
 [[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
-  revision = "c823c79ea1570fb5ff454033735a8e68575d1d0f"
-  version = "v1.3.0"
+  revision = "b5d812f8a3706043e23a9cd5babf2e5423744d30"
+  version = "v1.3.1"
 
 [[projects]]
   name = "github.com/jinzhu/gorm"
@@ -125,7 +125,7 @@
     "unix",
     "windows"
   ]
-  revision = "fead79001313d15903fb4605b4a1b781532cd93e"
+  revision = "a2f829d7f35f2ed1c3520c553a6226495455cae0"
 
 [[projects]]
   name = "gopkg.in/go-playground/validator.v8"

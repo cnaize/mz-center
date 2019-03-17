@@ -29,7 +29,7 @@ type MediaProvider interface {
 
 type SearchProvider interface {
 	GetSearchRequest(request model.SearchRequest) (model.SearchRequest, error)
-	GetSearchRequestList(offset, count uint) (model.SearchRequestList, error)
+	GetSearchRequestList(user model.User, offset, count uint) (model.SearchRequestList, error)
 	AddSearchRequest(request model.SearchRequest) error
 
 	GetSearchResponseList(request model.SearchRequest, offset, count uint) (model.SearchResponseList, error)

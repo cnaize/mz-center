@@ -33,10 +33,10 @@ func main() {
 	log.Init(loggerConfig)
 
 	if serverConfig.MinMZCoreVersion == "" {
-		serverConfig.MinMZCoreVersion = os.Getenv("MIN_MZ_CORE_VERSION")
+		serverConfig.MinMZCoreVersion = os.Getenv("MZ_MIN_CORE_VERSION")
 	}
 	if serverConfig.JwtTokenPassword == "" {
-		serverConfig.JwtTokenPassword = os.Getenv("JWT_TOKEN_PASSWORD")
+		serverConfig.JwtTokenPassword = os.Getenv("MZ_JWT_TOKEN_PASSWORD")
 	}
 	if len(os.Getenv("PORT")) > 0 {
 		port, err := strconv.ParseUint(os.Getenv("PORT"), 10, 23)

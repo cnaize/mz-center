@@ -45,6 +45,8 @@ func (db *DB) AddMediaRequest(user model.User, request model.MediaRequest) error
 		return err
 	}
 
+	request.User = model.User{}
+	request.Owner = model.User{}
 	request.UserID = user.ID
 	request.OwnerID = owner.ID
 
@@ -93,6 +95,11 @@ func (db *DB) AddMediaResponse(owner model.User, response model.MediaResponse) e
 		return err
 	}
 
+	// remove id to prevent creation media with core-side id
+	response.Media.ID = 0
+
+	response.User = model.User{}
+	response.Owner = model.User{}
 	response.UserID = user.ID
 	response.OwnerID = owner.ID
 
