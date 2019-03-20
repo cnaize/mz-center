@@ -37,6 +37,13 @@ func (s *Server) handleAddMediaRequest(c *gin.Context) {
 		return
 	}
 
+	// TODO:
+	//  handle "protected" mode
+
+	if inRequest.Mode != model.MediaAccessTypePublic && inRequest.Mode != model.MediaAccessTypePrivate {
+		inRequest.Mode = model.MediaAccessTypePublic
+	}
+
 	if err := db.AddMediaRequest(model.User{Username: username}, inRequest); err != nil {
 		log.Error("Server: media request add failed: %+v", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
@@ -74,6 +81,13 @@ func (s *Server) handleAddMediaResponse(c *gin.Context) {
 		log.Debug("Server: media response add failed: %+v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
+	}
+
+	// TODO:
+	//  handle "protected" mode
+
+	if inResponse.Mode != model.MediaAccessTypePublic && inResponse.Mode != model.MediaAccessTypePrivate {
+		inResponse.Mode = model.MediaAccessTypePublic
 	}
 
 	if err := db.AddMediaResponse(model.User{Username: username}, inResponse); err != nil {

@@ -8,6 +8,6 @@ import (
 
 func (s *Server) handleStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, model.CenterStatus{
-		MinCoreVersion: &s.config.MinMZCoreVersion,
+		MinCoreVersion: s.config.MinMZCoreVersion,
 	})
 }

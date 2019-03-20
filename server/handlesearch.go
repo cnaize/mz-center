@@ -9,7 +9,6 @@ import (
 
 func (s *Server) handleGetSearchRequestList(c *gin.Context) {
 	db := s.config.DB
-	username := c.MustGet("user").(string)
 
 	var in struct {
 		Offset uint `form:"offset"`
@@ -21,7 +20,7 @@ func (s *Server) handleGetSearchRequestList(c *gin.Context) {
 		in.Count = model.MaxRequestItemsPerRequestCount
 	}
 
-	res, err := db.GetSearchRequestList(model.User{Username: username}, in.Offset, in.Count)
+	res, err := db.GetSearchRequestList(in.Offset, in.Count)
 	if err != nil {
 		if db.IsSearchItemNotFound(err) {
 			c.AbortWithStatus(http.StatusNotFound)
@@ -38,6 +37,7 @@ func (s *Server) handleGetSearchRequestList(c *gin.Context) {
 
 func (s *Server) handleAddSearchRequest(c *gin.Context) {
 	db := s.config.DB
+	username := c.MustGet("user").(string)
 
 	var inRequest model.SearchRequest
 	if err := c.ShouldBindQuery(&inRequest); err != nil {
@@ -46,7 +46,14 @@ func (s *Server) handleAddSearchRequest(c *gin.Context) {
 		return
 	}
 
-	if err := db.AddSearchRequest(inRequest); err != nil {
+	// TODO:
+	//  handle "protected" mode
+
+	if inRequest.Mode != model.MediaAccessTypePublic && inRequest.Mode != model.MediaAccessTypePrivate {
+		inRequest.Mode = model.MediaAccessTypePublic
+	}
+
+	if err := db.AddSearchRequest(model.User{Username: username}, inRequest); err != nil {
 		log.Warn("Server: search request add failed: %+v", err)
 		c.AbortWithStatus(http.StatusConflict)
 		return
@@ -55,8 +62,12 @@ func (s *Server) handleAddSearchRequest(c *gin.Context) {
 	c.JSON(http.StatusCreated, inRequest)
 }
 
+// NOTE:
+//  returns 404 if related request not found
+//  returns empty list if responses doesn't exists
 func (s *Server) handleGetSearchResponseList(c *gin.Context) {
 	db := s.config.DB
+	username := c.MustGet("user").(string)
 
 	var in struct {
 		Offset uint `form:"offset"`
@@ -75,9 +86,16 @@ func (s *Server) handleGetSearchResponseList(c *gin.Context) {
 		return
 	}
 
-	res, err := db.GetSearchResponseList(inRequest, in.Offset, in.Count)
+	// TODO:
+	//  handle "protected" mode
+
+	if inRequest.Mode != model.MediaAccessTypePublic && inRequest.Mode != model.MediaAccessTypePrivate {
+		inRequest.Mode = model.MediaAccessTypePublic
+	}
+
+	res, err := db.GetSearchResponseList(model.User{Username: username}, inRequest, in.Offset, in.Count)
 	if err != nil {
-		if s.config.DB.IsSearchItemNotFound(err) {
+		if db.IsSearchItemNotFound(err) {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
@@ -99,6 +117,13 @@ func (s *Server) handleAddSearchResponseList(c *gin.Context) {
 		log.Warn("Server: search response list add failed: %+v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
+	}
+
+	// TODO:
+	//  handle "protected" mode
+
+	if inRequest.Mode != model.MediaAccessTypePublic && inRequest.Mode != model.MediaAccessTypePrivate {
+		inRequest.Mode = model.MediaAccessTypePublic
 	}
 
 	var inResponseList model.SearchResponseList

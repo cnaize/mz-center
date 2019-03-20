@@ -1,53 +1,110 @@
 package sqlite
 
 import (
+	"fmt"
 	"github.com/cnaize/mz-common/model"
 	"github.com/jinzhu/gorm"
 )
 
+// WARNING: not thread safe
 func (db *DB) GetSearchRequest(request model.SearchRequest) (model.SearchRequest, error) {
 	var res model.SearchRequest
-	if err := db.db.First(&res, "text = ?", request.Text).Error; err != nil {
+	if err := db.db.First(&res, "text = ? AND mode = ?", request.Text, request.Mode).Error; err != nil {
 		return res, err
 	}
 
 	return res, nil
 }
 
-// TODO:
-//  check if the user already sent response for the request
-func (db *DB) GetSearchRequestList(user model.User, offset, count uint) (model.SearchRequestList, error) {
-	var res model.SearchRequestList
-	user, err := db.GetUser(user)
-	if err != nil {
-		return res, err
-	}
-
-	if err := db.db.Find(&res.Items).Offset(offset).Limit(count).Error; err != nil {
-		return res, err
-	}
-
-	db.db.Model(&model.SearchRequest{}).Count(&res.AllItemsCount)
-
-	return res, nil
-}
-
-func (db *DB) AddSearchRequest(request model.SearchRequest) error {
+func (db *DB) GetSearchRequestList(offset, count uint) (model.SearchRequestList, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
-	return db.db.Save(&request).Error
+	var res model.SearchRequestList
+	query := db.db.Joins("LEFT JOIN search_responses ON search_responses.search_request_id = search_requests.id").
+		Where("search_responses.search_request_id IS NULL").
+		Joins("LEFT JOIN users ON users.id = search_responses.user_id").
+		Where("users.id IS NULL").
+		Offset(offset).
+		Limit(count)
+
+	// TODO:
+	//  handle "protected" mode
+
+	var private model.SearchRequestList
+	if err := query.Where("search_requests.mode = ?", model.MediaAccessTypePrivate).
+		Find(&private.Items).
+		Error; err != nil {
+		return res, err
+	}
+
+	var public model.SearchRequestList
+	if uint(len(private.Items)) < count {
+		if err := query.Where("search_requests.mode = ?", model.MediaAccessTypePublic).
+			Find(&public.Items).
+			Error; err != nil {
+			return res, err
+		}
+	}
+
+	res.Items = append(private.Items, public.Items...)
+	total := uint(len(res.Items))
+	res.AllItemsCount = &total
+
+	return res, nil
 }
 
-func (db *DB) GetSearchResponseList(request model.SearchRequest, offset, count uint) (model.SearchResponseList, error) {
+func (db *DB) AddSearchRequest(user model.User, request model.SearchRequest) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	if request.Mode == model.MediaAccessTypeProtected || request.Mode == model.MediaAccessTypePrivate {
+		user, err := db.GetUser(user)
+		if err != nil {
+			return err
+		}
+
+		request.UserID = user.ID
+	}
+
+	if request, err := db.GetSearchRequest(request); err == nil {
+		return db.db.Save(&request).Error
+	}
+
+	return db.db.Create(&request).Error
+}
+
+func (db *DB) GetSearchResponseList(user model.User, request model.SearchRequest, offset, count uint) (model.SearchResponseList, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
 	var res model.SearchResponseList
 	request, err := db.GetSearchRequest(request)
 	if err != nil {
 		return res, err
 	}
 
-	if err := db.db.Model(&request).Related(&res.Items).Offset(offset).Limit(count).Error; err != nil {
-		return res, err
+	query := db.db.Joins("INNER JOIN search_requests ON search_requests.id = search_responses.search_request_id").
+		Where("search_requests.mode = ?", request.Mode).
+		Offset(offset).
+		Limit(count)
+
+	// TODO:
+	//  handle "protected" mode
+
+	if request.Mode == model.MediaAccessTypePrivate {
+		user, err := db.GetUser(user)
+		if err != nil {
+			return res, err
+		}
+
+		query = query.Where("search_requests.user_id = ?", user.ID)
+	}
+
+	if err := query.Find(&res.Items).Error; err != nil {
+		if !db.IsSearchItemNotFound(err) {
+			return res, err
+		}
 	}
 
 	for _, r := range res.Items {
@@ -62,11 +119,11 @@ func (db *DB) GetSearchResponseList(request model.SearchRequest, offset, count u
 	return res, nil
 }
 
-func (db *DB) AddSearchResponseList(user model.User, request model.SearchRequest, responseList model.SearchResponseList) error {
+func (db *DB) AddSearchResponseList(owner model.User, request model.SearchRequest, responseList model.SearchResponseList) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
-	user, err := db.GetUser(user)
+	owner, err := db.GetUser(owner)
 	if err != nil {
 		return err
 	}
@@ -75,8 +132,22 @@ func (db *DB) AddSearchResponseList(user model.User, request model.SearchRequest
 		return err
 	}
 
-	if !db.db.Model(&request).Related(&model.SearchResponse{}).Limit(1).RecordNotFound() {
+	if db.db.Joins("INNER JOIN search_requests ON search_requests.id = search_responses.search_request_id").
+		Where("search_requests.mode = ?", request.Mode).
+		Where("search_responses.user_id = ?", owner.ID).
+		First(&model.SearchResponse{}).
+		RowsAffected > 0 {
 		return nil
+	}
+
+	// TODO:
+	//  handle "protected" mode
+
+	if request.Mode == model.MediaAccessTypePrivate {
+		if request.UserID != owner.ID {
+			return fmt.Errorf("user and owner mismatch in \"private\" mode: %d != %d (%s)",
+				request.UserID, owner.ID, owner.Username)
+		}
 	}
 
 	tx := db.db.Begin()
@@ -85,10 +156,7 @@ func (db *DB) AddSearchResponseList(user model.User, request model.SearchRequest
 	}
 
 	for _, r := range responseList.Items {
-		// remove id to prevent creation media with core-side id
-		r.Media.ID = 0
-
-		r.UserID = user.ID
+		r.UserID = owner.ID
 		r.SearchRequestID = request.ID
 
 		if err := tx.Create(&r).Error; err != nil {

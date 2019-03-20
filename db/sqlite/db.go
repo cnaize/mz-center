@@ -51,19 +51,18 @@ func (db *DB) runGC() {
 		if err := db.db.Model(&model.SearchRequest{}).Where("updated_at < ?", line).Pluck("id", &reqIDs).Error; err != nil {
 			return
 		}
-
 		if len(reqIDs) == 0 {
 			return
 		}
 
 		queue := db.db.Delete(&model.SearchResponse{}, "search_request_id IN (?)", reqIDs)
 		if queue.RowsAffected > 0 {
-			log.Debug("DB.rSearchGC(): requests removed: %d", queue.RowsAffected)
+			log.Debug("DB.rSearchGC(): responses removed: %d", queue.RowsAffected)
 		}
 
 		queue = db.db.Delete(&model.SearchRequest{}, "id IN (?)", reqIDs)
 		if queue.RowsAffected > 0 {
-			log.Debug("DB.rSearchGC(): responses removed: %d", queue.RowsAffected)
+			log.Debug("DB.rSearchGC(): requests removed: %d", queue.RowsAffected)
 		}
 	}
 
@@ -94,12 +93,21 @@ func (db *DB) runGC() {
 		db.db.Model(&model.Media{}).Joins("INNER JOIN search_responses ON search_responses.media_id = media.id").
 			Where("media.updated_at < ?", line).
 			Pluck("media.id", &srMediaIDs)
-		var mrMediaIDs []uint
+		var mqMediaIDs []uint
+		db.db.Model(&model.Media{}).Joins("INNER JOIN media_requests ON media_requests.media_id = media.id").
+			Where("media.updated_at < ?", line).
+			Pluck("media.id", &mqMediaIDs)
+		var msMediaIDs []uint
 		db.db.Model(&model.Media{}).Joins("INNER JOIN media_responses ON media_responses.media_id = media.id").
 			Where("media.updated_at < ?", line).
-			Pluck("media.id", &mrMediaIDs)
+			Pluck("media.id", &msMediaIDs)
 
-		queue := db.db.Delete(&model.Media{}).Not("id", append(srMediaIDs, mrMediaIDs...))
+		ids := append(srMediaIDs, append(mqMediaIDs, msMediaIDs...)...)
+		if len(ids) == 0 {
+			return
+		}
+
+		queue := db.db.Delete(&model.Media{}, "id NOT IN (?)", ids)
 		if queue.RowsAffected > 0 {
 			log.Debug("DB.mediaGC(): media removed: %d", queue.RowsAffected)
 		}
@@ -138,6 +146,11 @@ func prepare(db *gorm.DB) error {
 		return err
 	}
 	if err := db.AutoMigrate(&model.SearchResponse{}).Error; err != nil {
+		return err
+	}
+
+	if err := db.Model(&model.SearchRequest{}).
+		AddUniqueIndex("search_request_text_mode", "text", "mode").Error; err != nil {
 		return err
 	}
 

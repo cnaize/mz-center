@@ -8,6 +8,7 @@ import (
 // TODO:
 // Move it to Postgres
 
+// WARNING: not thread safe
 func (db *DB) GetUser(user model.User) (model.User, error) {
 	var res model.User
 	if err := db.db.First(&res, "username = ?", user.Username).Error; err != nil {
@@ -18,6 +19,9 @@ func (db *DB) GetUser(user model.User) (model.User, error) {
 }
 
 func (db *DB) CreateUser(user model.User) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
 	return db.db.Create(&user).Error
 }
 
