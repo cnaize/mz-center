@@ -97,12 +97,8 @@ func (db *DB) runGC() {
 		db.db.Model(&model.Media{}).Joins("INNER JOIN media_requests ON media_requests.media_id = media.id").
 			Where("media.updated_at < ?", line).
 			Pluck("media.id", &mqMediaIDs)
-		var msMediaIDs []uint
-		db.db.Model(&model.Media{}).Joins("INNER JOIN media_responses ON media_responses.media_id = media.id").
-			Where("media.updated_at < ?", line).
-			Pluck("media.id", &msMediaIDs)
 
-		ids := append(srMediaIDs, append(mqMediaIDs, msMediaIDs...)...)
+		ids := append(srMediaIDs, mqMediaIDs...)
 		if len(ids) == 0 {
 			return
 		}
@@ -153,6 +149,12 @@ func prepare(db *gorm.DB) error {
 		AddUniqueIndex("search_request_text_mode", "text", "mode").Error; err != nil {
 		return err
 	}
+
+	// TODO: REMOVE IT!!!
+	db.Save(&model.User{
+		Username: "ni",
+		Token:    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6Im5pIn0.E04Xxz7ROycss7bo8mGQ8BHZd4_lGIbAc4H9wlXTAIY",
+	})
 
 	return nil
 }

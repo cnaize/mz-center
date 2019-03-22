@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"fmt"
 	"github.com/cnaize/mz-common/model"
 	"github.com/jinzhu/gorm"
 )
@@ -8,11 +9,47 @@ import (
 // WARNING: not thread safe
 func (db *DB) GetMedia(media model.Media) (model.Media, error) {
 	var res model.Media
-	if err := db.db.First(&res, "name = ? AND ext = ? AND dir = ? AND core_side_id = ? AND media_root_id = ?",
-		media.Name, media.Ext, media.Dir, media.CoreSideID, media.MediaRootID).
+	if err := db.db.Where("name = ?", media.Name).
+		Where("ext = ?", media.Ext).
+		Where("dir = ?", media.Dir).
+		Where("core_side_id = ?", media.CoreSideID).
+		Where("media_root_id = ?", media.MediaRootID).
+		First(&res).
 		Error; err != nil {
 		return res, err
 	}
+
+	return res, nil
+}
+
+// WARNING: not thread safe
+func (db *DB) GetMediaRequest(request model.MediaRequest) (model.MediaRequest, error) {
+	var res model.MediaRequest
+	user, err := db.GetUser(request.User)
+	if err != nil {
+		return res, err
+	}
+	owner, err := db.GetUser(request.Owner)
+	if err != nil {
+		return res, err
+	}
+	media, err := db.GetMedia(request.Media)
+	if err != nil {
+		return res, err
+	}
+
+	if err := db.db.Where("mode = ?", request.Mode).
+		Where("user_id = ?", user.ID).
+		Where("owner_id = ?", owner.ID).
+		Where("media_id = ?", media.ID).
+		First(&res).
+		Error; err != nil {
+		return res, err
+	}
+
+	res.User = user
+	res.Owner = owner
+	res.Media = media
 
 	return res, nil
 }
@@ -27,9 +64,11 @@ func (db *DB) GetMediaRequestList(owner model.User) (model.MediaRequestList, err
 		return res, err
 	}
 
-	// TODO:
-	//  check if we have to filter it
-	if err := db.db.Find(&res.Items, "owner_id = ?", owner.ID).Error; err != nil {
+	if err := db.db.Joins("LEFT JOIN media_responses ON media_responses.media_request_id = media_requests.id").
+		Where("media_responses.id IS NULL").
+		Where("media_requests.owner_id = ?", owner.ID).
+		Find(&res.Items).
+		Error; err != nil {
 		return res, err
 	}
 
@@ -37,24 +76,34 @@ func (db *DB) GetMediaRequestList(owner model.User) (model.MediaRequestList, err
 		return res, gorm.ErrRecordNotFound
 	}
 
-	for _, r := range res.Items {
-		r.Owner = owner
-		if err := db.db.Model(&r).Related(&r.User).Error; err != nil {
+	// clear tokens
+	owner.Token = ""
+
+	for _, rq := range res.Items {
+		rq.Owner = owner
+		if err := db.db.Model(&rq).Related(&rq.User).Error; err != nil {
 			return res, err
 		}
-		if err := db.db.Model(&r).Related(&r.Media).Error; err != nil {
+		if err := db.db.Model(&rq).Related(&rq.Media).Error; err != nil {
 			return res, err
 		}
+
+		// clear tokens
+		rq.User.Token = ""
 	}
 
 	return res, nil
 }
 
-func (db *DB) AddMediaRequest(user model.User, request model.MediaRequest) error {
+func (db *DB) AddMediaRequest(request model.MediaRequest) error {
 	db.Lock()
 	defer db.Unlock()
 
-	user, err := db.GetUser(user)
+	if _, err := db.GetMediaRequest(request); err == nil {
+		return nil
+	}
+
+	user, err := db.GetUser(request.User)
 	if err != nil {
 		return err
 	}
@@ -62,39 +111,22 @@ func (db *DB) AddMediaRequest(user model.User, request model.MediaRequest) error
 	if err != nil {
 		return err
 	}
-
-	query := db.db.Joins("INNER JOIN media ON media.id = media_requests.media_id").
-		Where("media_requests.mode = ?", request.Mode).
-		Where("media_requests.user_id = ?", user.ID).
-		Where("media_requests.owner_id = ?", owner.ID)
-
 	media, err := db.GetMedia(request.Media)
 	if err != nil {
-		media = request.Media
+		return err
+	}
 
-		query = query.Where("media.name = ?", media.Name).
-			Where("media.ext = ?", media.Ext).
-			Where("media.dir = ?", media.Dir).
-			Where("media.core_side_id = ?", media.CoreSideID).
-			Where("media.media_root_id = ?", media.MediaRootID)
-	} else {
-		query = query.Where("media_requests.media_id = ?", media.ID)
+	// TODO:
+	//  handle "protected" mode
+
+	if request.Mode == model.MediaAccessTypePrivate && user.ID != owner.ID {
+		return fmt.Errorf("media owner %s: access denied for user %s", owner.Username, user.Username)
 	}
 
 	// update media timestamp
 	if err := db.db.Save(&media).Error; err != nil {
 		return err
 	}
-
-	var savedRequest model.MediaRequest
-	if err := query.First(&savedRequest).Error; err == nil {
-		if err := db.db.Delete(&savedRequest).Error; err != nil {
-			return err
-		}
-	}
-
-	// TODO:
-	//  handle "protected" mode
 
 	request.User = model.User{}
 	request.Owner = model.User{}
@@ -115,81 +147,59 @@ func (db *DB) GetMediaResponseList(user model.User) (model.MediaResponseList, er
 	if err != nil {
 		return res, err
 	}
-
-	if err := db.db.First(&model.MediaRequest{}, "user_id = ?", user.ID).Error; err != nil {
+	var requestList model.MediaRequestList
+	if err := db.db.Joins("INNER JOIN media_responses ON media_responses.media_request_id = media_requests.id").
+		Where("media_requests.user_id = ?", user.ID).
+		Find(&requestList.Items).
+		Error; err != nil {
 		return res, err
 	}
 
-	if err := db.db.Find(&res.Items, "user_id = ?", user.ID).Error; err != nil {
-		return res, err
-	}
+	// clear tokens
+	user.Token = ""
 
-	for _, r := range res.Items {
-		r.User = user
-		if err := db.db.First(&r.Owner, r.OwnerID).Error; err != nil {
+	for _, rq := range requestList.Items {
+		rq.User = user
+		if err := db.db.First(&rq.Owner, rq.OwnerID).Error; err != nil {
 			return res, err
 		}
-		if err := db.db.Model(&r).Related(&r.Media).Error; err != nil {
+		if err := db.db.Model(&rq).Related(&rq.Media).Error; err != nil {
 			return res, err
 		}
 
-		r.User = user
+		// clear tokens
+		rq.Owner.Token = ""
+
+		var rs model.MediaResponse
+		if err := db.db.Model(&rq).Related(&rs).Error; err != nil {
+			return res, err
+		}
+		rs.MediaRequest = *rq
+
+		res.Items = append(res.Items, &rs)
 	}
 
 	return res, nil
 }
 
-func (db *DB) AddMediaResponse(owner model.User, response model.MediaResponse) error {
+func (db *DB) AddMediaResponse(response model.MediaResponse) error {
 	db.Lock()
 	defer db.Unlock()
 
-	owner, err := db.GetUser(owner)
-	if err != nil {
-		return err
-	}
-	user, err := db.GetUser(response.User)
-	if err != nil {
-		return err
-	}
-	media, err := db.GetMedia(response.Media)
+	request, err := db.GetMediaRequest(response.MediaRequest)
 	if err != nil {
 		return err
 	}
 
-	// TODO:
-	//  handle "protected" mode
-
-	if response.Mode == model.MediaAccessTypePrivate {
-		if err := db.db.Where("mode = ?", response.Mode).
-			Where("user_id = ?", user.ID).
-			Where("owner_id = ?", owner.ID).
-			Where("media_id = ?", media.ID).
-			First(&model.MediaRequest{}).
-			Error; err != nil {
-			return err
-		}
+	if err := db.db.First(&model.MediaResponse{}, "media_request_id = ?", request.ID).Error; err == nil {
+		return nil
 	}
 
-	// update media timestamp
-	if err := db.db.Save(&response.Media).Error; err != nil {
-		return err
-	}
+	request.User = model.User{}
+	request.Owner = model.User{}
 
-	if err := db.db.Delete(&model.MediaResponse{}).
-		Where("mode = ?", response.Mode).
-		Where("user_id = ?", user.ID).
-		Where("owner_id = ?", owner.ID).
-		Where("media_id = ?", media.ID).
-		Error; err != nil {
-		return err
-	}
-
-	response.User = model.User{}
-	response.Owner = model.User{}
-	response.Media = model.Media{}
-	response.UserID = user.ID
-	response.OwnerID = owner.ID
-	response.MediaID = media.ID
+	response.MediaRequest = request
+	response.MediaRequestID = request.ID
 
 	return db.db.Create(&response).Error
 }

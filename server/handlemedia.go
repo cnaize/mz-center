@@ -31,7 +31,7 @@ func (s *Server) handleAddMediaRequest(c *gin.Context) {
 	username := c.MustGet("user").(string)
 
 	var inRequest model.MediaRequest
-	if err := c.ShouldBindJSON(&inRequest); err != nil {
+	if err := c.ShouldBindJSON(&inRequest); err != nil || inRequest.Owner.Username == "" {
 		log.Debug("Server: media request add failed: %+v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
@@ -43,9 +43,15 @@ func (s *Server) handleAddMediaRequest(c *gin.Context) {
 	if inRequest.Mode != model.MediaAccessTypePublic && inRequest.Mode != model.MediaAccessTypePrivate {
 		inRequest.Mode = model.MediaAccessTypePublic
 	}
+	inRequest.User = model.User{Username: username}
 
-	if err := db.AddMediaRequest(model.User{Username: username}, inRequest); err != nil {
+	if err := db.AddMediaRequest(inRequest); err != nil {
 		log.Error("Server: media request add failed: %+v", err)
+		if db.IsMediaItemNotFound(err) {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -77,7 +83,7 @@ func (s *Server) handleAddMediaResponse(c *gin.Context) {
 	username := c.MustGet("user").(string)
 
 	var inResponse model.MediaResponse
-	if err := c.ShouldBindJSON(&inResponse); err != nil {
+	if err := c.ShouldBindJSON(&inResponse); err != nil || inResponse.MediaRequest.User.Username == "" {
 		log.Debug("Server: media response add failed: %+v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
@@ -86,12 +92,18 @@ func (s *Server) handleAddMediaResponse(c *gin.Context) {
 	// TODO:
 	//  handle "protected" mode
 
-	if inResponse.Mode != model.MediaAccessTypePublic && inResponse.Mode != model.MediaAccessTypePrivate {
-		inResponse.Mode = model.MediaAccessTypePublic
+	if inResponse.MediaRequest.Mode != model.MediaAccessTypePublic && inResponse.MediaRequest.Mode != model.MediaAccessTypePrivate {
+		inResponse.MediaRequest.Mode = model.MediaAccessTypePublic
 	}
+	inResponse.MediaRequest.Owner = model.User{Username: username}
 
-	if err := db.AddMediaResponse(model.User{Username: username}, inResponse); err != nil {
+	if err := db.AddMediaResponse(inResponse); err != nil {
 		log.Error("Server: media response add failed: %+v", err)
+		if db.IsMediaItemNotFound(err) {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}

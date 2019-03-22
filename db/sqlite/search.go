@@ -115,6 +115,9 @@ func (db *DB) GetSearchResponseList(user model.User, request model.SearchRequest
 		if err := db.db.Model(&r).Related(&r.Media).Error; err != nil {
 			return res, err
 		}
+
+		// clear tokens
+		r.Owner.Token = ""
 	}
 
 	return res, nil
