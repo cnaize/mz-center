@@ -19,8 +19,8 @@ func (db *DB) GetUser(user model.User) (model.User, error) {
 }
 
 func (db *DB) CreateUser(user model.User) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	db.Lock()
+	defer db.Unlock()
 
 	return db.db.Create(&user).Error
 }

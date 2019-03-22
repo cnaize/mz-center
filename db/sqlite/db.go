@@ -17,7 +17,7 @@ const (
 )
 
 type DB struct {
-	mu sync.Mutex
+	sync.Mutex
 	db *gorm.DB
 }
 
@@ -42,8 +42,8 @@ func New() (*DB, error) {
 
 func (db *DB) runGC() {
 	rSearchGC := func() {
-		db.mu.Lock()
-		defer db.mu.Unlock()
+		db.Lock()
+		defer db.Unlock()
 
 		line := time.Now().Add(-rSearchCleanPeriod)
 
@@ -67,8 +67,8 @@ func (db *DB) runGC() {
 	}
 
 	rMediaGC := func() {
-		db.mu.Lock()
-		defer db.mu.Unlock()
+		db.Lock()
+		defer db.Unlock()
 
 		line := time.Now().Add(-rMediaCleanPeriod)
 
@@ -84,8 +84,8 @@ func (db *DB) runGC() {
 	}
 
 	mediaGC := func() {
-		db.mu.Lock()
-		defer db.mu.Unlock()
+		db.Lock()
+		defer db.Unlock()
 
 		line := time.Now().Add(-mediaCleanPeriod)
 

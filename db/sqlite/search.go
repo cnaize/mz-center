@@ -17,8 +17,8 @@ func (db *DB) GetSearchRequest(request model.SearchRequest) (model.SearchRequest
 }
 
 func (db *DB) GetSearchRequestList(offset, count uint) (model.SearchRequestList, error) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	db.Lock()
+	defer db.Unlock()
 
 	var res model.SearchRequestList
 	query := db.db.Joins("LEFT JOIN search_responses ON search_responses.search_request_id = search_requests.id").
@@ -48,15 +48,16 @@ func (db *DB) GetSearchRequestList(offset, count uint) (model.SearchRequestList,
 	}
 
 	res.Items = append(private.Items, public.Items...)
-	total := uint(len(res.Items))
-	res.AllItemsCount = &total
+	if len(res.Items) == 0 {
+		return res, gorm.ErrRecordNotFound
+	}
 
 	return res, nil
 }
 
 func (db *DB) AddSearchRequest(user model.User, request model.SearchRequest) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	db.Lock()
+	defer db.Unlock()
 
 	if request.Mode == model.MediaAccessTypeProtected || request.Mode == model.MediaAccessTypePrivate {
 		user, err := db.GetUser(user)
@@ -75,8 +76,8 @@ func (db *DB) AddSearchRequest(user model.User, request model.SearchRequest) err
 }
 
 func (db *DB) GetSearchResponseList(user model.User, request model.SearchRequest, offset, count uint) (model.SearchResponseList, error) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	db.Lock()
+	defer db.Unlock()
 
 	var res model.SearchResponseList
 	request, err := db.GetSearchRequest(request)
@@ -120,8 +121,8 @@ func (db *DB) GetSearchResponseList(user model.User, request model.SearchRequest
 }
 
 func (db *DB) AddSearchResponseList(owner model.User, request model.SearchRequest, responseList model.SearchResponseList) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	db.Lock()
+	defer db.Unlock()
 
 	owner, err := db.GetUser(owner)
 	if err != nil {

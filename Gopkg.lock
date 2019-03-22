@@ -8,7 +8,7 @@
     "log",
     "model"
   ]
-  revision = "3e780238dec07b51679f97f7d8794a757fb6e2f2"
+  revision = "10a87e797b1547ba7dbb459789fd682d4f2ff30c"
 
 [[projects]]
   name = "github.com/dgrijalva/jwt-go"
@@ -116,7 +116,7 @@
     "blowfish",
     "ssh/terminal"
   ]
-  revision = "a1f597ede03a7bef967a422b5b3a5bd08805a01e"
+  revision = "b7391e95e576cacdcdd422573063bc057239113d"
 
 [[projects]]
   branch = "master"
@@ -125,7 +125,7 @@
     "unix",
     "windows"
   ]
-  revision = "6c81ef8f67ca3f42fc9cd71dfbd5f35b0c4b5771"
+  revision = "f49334f85ddcf0f08d7fb6dd7363e9e6d6b777eb"
 
 [[projects]]
   name = "gopkg.in/go-playground/validator.v8"

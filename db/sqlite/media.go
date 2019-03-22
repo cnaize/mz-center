@@ -1,7 +1,6 @@
 package sqlite
 
 import (
-	"fmt"
 	"github.com/cnaize/mz-common/model"
 	"github.com/jinzhu/gorm"
 )
@@ -19,8 +18,8 @@ func (db *DB) GetMedia(media model.Media) (model.Media, error) {
 }
 
 func (db *DB) GetMediaRequestList(owner model.User) (model.MediaRequestList, error) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	db.Lock()
+	defer db.Unlock()
 
 	var res model.MediaRequestList
 	owner, err := db.GetUser(owner)
@@ -28,8 +27,14 @@ func (db *DB) GetMediaRequestList(owner model.User) (model.MediaRequestList, err
 		return res, err
 	}
 
+	// TODO:
+	//  check if we have to filter it
 	if err := db.db.Find(&res.Items, "owner_id = ?", owner.ID).Error; err != nil {
 		return res, err
+	}
+
+	if len(res.Items) == 0 {
+		return res, gorm.ErrRecordNotFound
 	}
 
 	for _, r := range res.Items {
@@ -46,8 +51,8 @@ func (db *DB) GetMediaRequestList(owner model.User) (model.MediaRequestList, err
 }
 
 func (db *DB) AddMediaRequest(user model.User, request model.MediaRequest) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	db.Lock()
+	defer db.Unlock()
 
 	user, err := db.GetUser(user)
 	if err != nil {
@@ -58,29 +63,60 @@ func (db *DB) AddMediaRequest(user model.User, request model.MediaRequest) error
 		return err
 	}
 
+	query := db.db.Joins("INNER JOIN media ON media.id = media_requests.media_id").
+		Where("media_requests.mode = ?", request.Mode).
+		Where("media_requests.user_id = ?", user.ID).
+		Where("media_requests.owner_id = ?", owner.ID)
+
+	media, err := db.GetMedia(request.Media)
+	if err != nil {
+		media = request.Media
+
+		query = query.Where("media.name = ?", media.Name).
+			Where("media.ext = ?", media.Ext).
+			Where("media.dir = ?", media.Dir).
+			Where("media.core_side_id = ?", media.CoreSideID).
+			Where("media.media_root_id = ?", media.MediaRootID)
+	} else {
+		query = query.Where("media_requests.media_id = ?", media.ID)
+	}
+
+	// update media timestamp
+	if err := db.db.Save(&media).Error; err != nil {
+		return err
+	}
+
+	var savedRequest model.MediaRequest
+	if err := query.First(&savedRequest).Error; err == nil {
+		if err := db.db.Delete(&savedRequest).Error; err != nil {
+			return err
+		}
+	}
+
 	// TODO:
 	//  handle "protected" mode
 
 	request.User = model.User{}
 	request.Owner = model.User{}
+	request.Media = model.Media{}
 	request.UserID = user.ID
 	request.OwnerID = owner.ID
-
-	if media, err := db.GetMedia(request.Media); err == nil {
-		request.Media = model.Media{}
-		request.MediaID = media.ID
-	}
+	request.MediaID = media.ID
 
 	return db.db.Create(&request).Error
 }
 
 func (db *DB) GetMediaResponseList(user model.User) (model.MediaResponseList, error) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	db.Lock()
+	defer db.Unlock()
 
 	var res model.MediaResponseList
 	user, err := db.GetUser(user)
 	if err != nil {
+		return res, err
+	}
+
+	if err := db.db.First(&model.MediaRequest{}, "user_id = ?", user.ID).Error; err != nil {
 		return res, err
 	}
 
@@ -104,8 +140,8 @@ func (db *DB) GetMediaResponseList(user model.User) (model.MediaResponseList, er
 }
 
 func (db *DB) AddMediaResponse(owner model.User, response model.MediaResponse) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	db.Lock()
+	defer db.Unlock()
 
 	owner, err := db.GetUser(owner)
 	if err != nil {
@@ -124,17 +160,27 @@ func (db *DB) AddMediaResponse(owner model.User, response model.MediaResponse) e
 	//  handle "protected" mode
 
 	if response.Mode == model.MediaAccessTypePrivate {
-		if err := db.db.First(&model.MediaRequest{},
-			"user_id = ? AND owner_id = ? AND media_id = ? AND mode = ?",
-			user.ID, owner.ID, media.ID, response.Mode).
+		if err := db.db.Where("mode = ?", response.Mode).
+			Where("user_id = ?", user.ID).
+			Where("owner_id = ?", owner.ID).
+			Where("media_id = ?", media.ID).
+			First(&model.MediaRequest{}).
 			Error; err != nil {
-			return fmt.Errorf("media request not found: user %s, owner %s, media id %d",
-				user.Username, owner.Username, media.ID)
+			return err
 		}
 	}
 
 	// update media timestamp
 	if err := db.db.Save(&response.Media).Error; err != nil {
+		return err
+	}
+
+	if err := db.db.Delete(&model.MediaResponse{}).
+		Where("mode = ?", response.Mode).
+		Where("user_id = ?", user.ID).
+		Where("owner_id = ?", owner.ID).
+		Where("media_id = ?", media.ID).
+		Error; err != nil {
 		return err
 	}
 
