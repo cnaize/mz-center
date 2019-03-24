@@ -151,10 +151,12 @@ func prepare(db *gorm.DB) error {
 	}
 
 	// TODO: REMOVE IT!!!
-	db.Save(&model.User{
-		Username: "ni",
-		Token:    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6Im5pIn0.E04Xxz7ROycss7bo8mGQ8BHZd4_lGIbAc4H9wlXTAIY",
-	})
+	//ph, _ := bcrypt.GenerateFromPassword([]byte("123"), bcrypt.DefaultCost)
+	//db.Save(&model.User{
+	//	Username: "ni",
+	//	PassHash: string(ph),
+	//	Token:    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6Im5pIn0.E04Xxz7ROycss7bo8mGQ8BHZd4_lGIbAc4H9wlXTAIY",
+	//})
 
 	return nil
 }
