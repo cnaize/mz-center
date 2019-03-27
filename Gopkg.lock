@@ -8,7 +8,7 @@
     "log",
     "model"
   ]
-  revision = "dcb974e6974a10b945bbbe3e16f86af5f9effc88"
+  revision = "c7f6b5b78576e0566257fcb830786be791d51527"
 
 [[projects]]
   name = "github.com/dgrijalva/jwt-go"
@@ -116,7 +116,7 @@
     "blowfish",
     "ssh/terminal"
   ]
-  revision = "b7391e95e576cacdcdd422573063bc057239113d"
+  revision = "a5d413f7728c81fb97d96a2b722368945f651e78"
 
 [[projects]]
   branch = "master"
